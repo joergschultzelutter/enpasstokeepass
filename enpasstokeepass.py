@@ -177,7 +177,6 @@ if __name__ == "__main__":
                         myattachmentname = attachment["name"]
                         myattachmentdata = attachment["data"]
                         myattachment = base64.b64decode(myattachmentdata)
-                        print(myattachmentname)
                         attachment_id = kp.add_binary(data=myattachment)
                         newentry.add_attachment(
                             id=attachment_id, filename=myattachmentname
