@@ -154,11 +154,11 @@ if __name__ == "__main__":
                 sub_category = root_category
 
             # now extract our special key fields from the dict
-            myusername = key_fields["username"] if "username" in key_fields else None
-            mypassword = key_fields["password"] if "password" in key_fields else None
+            myusername = key_fields["username"] if "username" in key_fields else ""
+            mypassword = key_fields["password"] if "password" in key_fields else ""
             myurl = key_fields["url"] if "url" in key_fields else None
             myemail = key_fields["email"] if "email" in key_fields else None
-            if mytitle and myusername and mypassword and myurl:
+            if mytitle:
                 newentry = kp.add_entry(
                     destination_group=sub_category,
                     title=mytitle,
