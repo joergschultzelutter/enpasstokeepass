@@ -108,6 +108,7 @@ if __name__ == "__main__":
                     myvalue = myfield["value"]
                     mytype = myfield["type"]
                     mylabel = myfield["label"]
+                    myuid = myfield["uid"]
 
                     # the JSON export contains fields even if they are empty
                     # so let's ensure that we only process the data if there
@@ -119,10 +120,13 @@ if __name__ == "__main__":
                         if mytype in key_categories and mytype not in key_fields:
                             key_fields[mytype] = myvalue
                         # otherwise, add it to the dictionary
-                        # note: required improved dupe handling
                         else:
+                            # reflag enpass TOTP entries; Keepass requires this as "otp"
                             if mytype == "totp":
                                 mylabel = "otp"
+                            if mylabel in value_fields:
+                                logger.info("Duplicate enpass label name detected; attaching UID to keepass label")
+                                mylabel = f"{mylabel}_{myuid}"
                             value_fields[mylabel] = myvalue
                 print(f"Keyfields:{key_fields}")
                 print(f"restliche Felder: {value_fields}")
