@@ -124,10 +124,17 @@ if __name__ == "__main__":
                             # reflag enpass TOTP entries; Keepass requires this as "otp"
                             if mytype == "totp":
                                 mylabel = "otp"
+                            # If we detect a dupe record, attach the UUID to the label name
                             if mylabel in value_fields:
                                 logger.info("Duplicate enpass label name detected; attaching UID to keepass label")
                                 mylabel = f"{mylabel}_{myuid}"
-                            value_fields[mylabel] = myvalue
+                            # if the uuid'ed label is also a dupe, then we give up
+                            # This could be enhanced with a more sophisticated key
+                            # but as this a quick conversion kack I don't really care
+                            if mylabel in value_fields:
+                                logger.info("Duplicate enpass label+uuid name detected; giving up")
+                            else:
+                                value_fields[mylabel] = myvalue
                 print(f"Keyfields:{key_fields}")
                 print(f"restliche Felder: {value_fields}")
 
