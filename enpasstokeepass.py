@@ -1,3 +1,51 @@
+#!/opt/local/bin/python
+
+# Enpass-to-Keepass converter
+# Author: Joerg Schultze-Lutter, 2021
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+#
+# This program reads an Enpass JSON export file and converts its contents
+# to an existing Keepass file.
+#
+# IN SCOPE:
+# - creates the (native) Enpass group names in Keepass; e.g. a login item
+#   will end up in the login category.
+# - whenever possible, item names (and attributes) are copied as is. If a
+#   duplicate entry is detected, the program still tries to write the entry
+#   by attaching Enpass' uid/uuid to it.
+# - supports transfer of attachments
+#
+# OUT OF SCOPE / KNOWN ISSUES
+# - little to none exception handling
+# - garbage-in-garbage-out. For certain entries, Enpass does seem to store entry
+#   fields that are not displayed in the GUI - but are present in the JSON export file
+# - the category / group names are copied "as is" (based on their group *type*)
+# - The program expects an existing Keepass file. It will not create one for you.
+# - first-come-first-serve. Enpass allows e.g. multiple 'password' attributes per
+#   entry. For each type in (username, email, password, url), this converter uses
+#   the very first instance for creating the native Keepass key value. Occurrence 2..n
+#   will end up as regular attributes in the Keepass entry - regardless of
+#   whether they are e.g. a URL, email address - or not
+# - Converter assumes that there will be 0...1 "totp" entries in the Enpass entry.
+#   In case Enpass should ever support more than one TOTP setting per entry, only
+#   the very last entry will be copied
+#
+
 import json
 import os
 import logging
@@ -5,6 +53,7 @@ from pykeepass import PyKeePass
 from shutil import copyfile
 import base64
 import unicodedata
+import argparse
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(module)s -%(levelname)s- %(message)s"
@@ -13,8 +62,20 @@ logger = logging.getLogger(__name__)
 
 
 def read_enpass_json_file(json_filename: str):
+    """
+    Read the Enpass export file and converts its content to a dictionary
 
-    success: bool = False
+    Parameters
+    ==========
+    json_filename : 'str'
+        file name of the Enpass JSON export file
+
+    Returns
+    =======
+
+    Returns a dict, consisting of the the Enpass JSON export content
+
+    """
     list_lines = None
 
     # Open the local file and read it
@@ -25,35 +86,65 @@ def read_enpass_json_file(json_filename: str):
                 if f.mode == "r":
                     list_lines = f.readlines()
                     f.close()
-            success = True
         except:
             list_lines = None
     else:
         logger.info(msg=f"File '{json_filename}' does not exist")
 
     json_content = {}
-    if success:
-        if list_lines:
-            string_lines = " ".join(list_lines)
+    # did we receive any content?
+    if list_lines:
+        # enpass exports single lines; let's join them
+        string_lines = " ".join(list_lines)
+        # Finally, try to convert the content to a dictionary
+        try:
             json_content = json.loads(string_lines)
+        except:
+            json_content = {}
     return json_content
 
 
 def remove_control_characters(s):
-    return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
+    """
+    Removes Unicode control characters from the input string
+    (those control characters would result in an import error)
+    """
+
+    return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")
 
 
 if __name__ == "__main__":
+    # Get our parameters
+    # Syntax: enpasstokeepass <enpass_export_file> <keepass_target_file> [--password] [--keyfile]
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "enpassfile", type=argparse.FileType("r"), help="Enpass Export File"
+    )
+
+    parser.add_argument(
+        "keepassfile", type=argparse.FileType("r"), help="Keepass target file"
+    )
+
+    parser.add_argument("--password", default=None, type=str, help="Keepass password")
+    parser.add_argument("--keyfile", default=None, type=str, help="Keepass keyfile")
+
+    args = parser.parse_args()
+
+    keepass_filename = args.keepassfile.name
+    keepass_password = args.password
+    keepass_keyfile = args.keyfile
+    enpass_export_filename = args.enpassfile.name
+
+    # Keepass' 'native' core key entries. We also use this table to prevent
+    # the creation of 'regular' attributes with these names
     key_categories = ["username", "email", "password", "url"]
 
-    keepass_filename = "/Volumes/Untitled/Passwords.kdbx"
-    keepass_password = "1q2w3e4r"
-    keepass_keyfile = None
-    enpass_export_filename = "/Volumes/Untitled/export.json"
+    copyfile("/Volumes/Untitled/empty_keepass_database.kdbx", keepass_filename)
 
-    copyfile("/Volumes/Untitled/leer.kdbx", keepass_filename)
+    # this is our keepass object
     kp = None
 
+    # try to open the Keepass file
     try:
         kp = PyKeePass(
             filename=keepass_filename,
@@ -73,12 +164,13 @@ if __name__ == "__main__":
 
         # iterate through all items from the export file
         for myitem in myitems:
-            # This dictionnary contains the "native" keepass fields
+            # This dictionary contains the "native" keepass fields
             # (username, email, password, url)
-            # The very first instance of a field type within the enpass
+            # The very FIRST instance of a field type within the enpass
             # export file is retrieved and assigned. If an export contains
             # e.g. more than one password fields, field 2..n are considered to
             # be regular fields and it is up to the user to maintain them.
+            # Those fields will end up in the value_fields dictionary
             key_fields = {}
 
             # For all the other fields that either have no specific field
@@ -93,8 +185,12 @@ if __name__ == "__main__":
             _templates = template_type.split(".")
             category = _templates[0]
             subcategory = _templates[1]
+
+            # Get title and uuid
             mytitle = myitem["title"]
             myuuid = myitem["uuid"]
+
+            logger.info(f"Processing entry '{mytitle}'")
 
             # Get any potential notes that are assigned to this item
             # Enpass always provides this information even if there is no data
@@ -128,27 +224,50 @@ if __name__ == "__main__":
                         # otherwise, add it to the dictionary
                         else:
                             # reflag enpass TOTP entries; Keepass requires this as "otp"
+                            # hint: we assume that there is only one totp entry per record
                             if mytype == "totp":
                                 mylabel = "otp"
-                            # If we detect a dupe record, attach the UUID to the label name
-                            if mylabel in value_fields:
-                                logger.info("Duplicate enpass label name detected; attaching UID to keepass label")
-                                mylabel = f"{mylabel}_{myuid}"
+                            # Enpass field names can be empty; if that is the case, use a fixed
+                            # prefix and the field's uid as field name
+                            if mylabel == "":
+                                logger.info(
+                                    f"Empty enpass label name '{mylabel}' for entry '{mytitle}' detected; assigning 'empty_enpass_label_{myuid}' to keepass target field"
+                                )
+                                mylabel = f"empty_enpass_label_{myuid}"
+                            else:
+                                # label is not empty - this should be our default
+                                # If we detect a dupe record, attach the UUID to the label name
+                                if mylabel in value_fields:
+                                    logger.info(
+                                        f"Duplicate enpass label name '{mylabel}' for entry '{mytitle}' detected; attaching UID '{myuid}' to keepass label"
+                                    )
+                                    mylabel = f"{mylabel}_{myuid}"
 
+                            # check if the label that we want to create contains a Keepass keyword
+                            # (e.g. password, url). If yes, rename the field accordingly
                             if mylabel.lower() in key_categories:
-                                logger.info("Reserved word detected; attaching UID to keepass label")
+                                logger.info(
+                                    f"Reserved word '{mylabel.lower()}' for entry '{mytitle}' detected; attaching UID '{myuid}' to keepass label"
+                                )
                                 mylabel = f"{mylabel}_{myuid}"
 
+                            # Remove all potential UTF-8 control characters from the field's value
+                            # These settings are not visible in Enpass but would break the Keepass import
                             myvalue = remove_control_characters(myvalue)
 
                             # if the uuid'ed label is also a dupe, then we give up
                             # This could be enhanced with a more sophisticated key
                             # but as this a quick conversion kack I don't really care
                             if mylabel in value_fields:
-                                logger.info("Duplicate enpass label+uuid name detected; giving up")
+                                logger.info(
+                                    f"Duplicate enpass label+uuid '{mylabel}' name for entry '{mytitle}' detected; giving up"
+                                )
                             else:
                                 value_fields[mylabel] = myvalue
 
+            # We have processed the data for one entry - now let's start
+            # with writing it to the Keepass file
+            #
             # try to find the main category group in the keepass file
             # and create it if it does not exist yet
             root_category = kp.find_groups(
@@ -170,25 +289,44 @@ if __name__ == "__main__":
                     sub_category = kp.add_group(
                         destination_group=root_category, group_name=subcategory
                     )
-            # if our category has no 2nd tier, simply take this as our foundation for
-            # creating the entries.
+            # if our category has no 2nd tier, simply take the root group as
+            # our foundation for creating the entries.
             else:
                 sub_category = root_category
 
             # now extract our special key fields from the dict
+            # Username and Password can be empty string if the values are not present
             myusername = key_fields["username"] if "username" in key_fields else ""
             mypassword = key_fields["password"] if "password" in key_fields else ""
+
+            # Per pykeepass, url and email need to be 'None" if not present
             myurl = key_fields["url"] if "url" in key_fields else None
             myemail = key_fields["email"] if "email" in key_fields else None
+
+            # Check if the title already exists in the database
             if mytitle:
-                matches = kp.find_entries_by_title(title=mytitle,group=sub_category,first=True)
+                matches = kp.find_entries_by_title(
+                    title=mytitle, group=sub_category, first=True
+                )
+                # We have found a ducplicate - let's add the uuid to the title
                 if matches:
-                    logger.info("Duplicate title detected; attaching uuid to it")
+                    logger.info(
+                        f"Duplicate title '{mytitle}' detected; attaching uuid '{myuuid}' to it"
+                    )
                     mytitle = f"{mytitle}_{myuuid}"
-                matches = kp.find_entries_by_title(title=mytitle,group=sub_category,first=True)
+
+                # Check again (potentially with the enhanced title). Create the entry if
+                # it is not present in the Keepass database
+                matches = kp.find_entries_by_title(
+                    title=mytitle, group=sub_category, first=True
+                )
+                # Still a dupe? Then we give up. This should never happen, though
                 if matches:
-                    logger.info("Duplicate title with uuid detected; giving up")
+                    logger.info(
+                        f"Duplicate title with uuid '{mytitle}' detected; giving up"
+                    )
                 else:
+                    # Create the Keepass entry
                     newentry = kp.add_entry(
                         destination_group=sub_category,
                         title=mytitle,
@@ -197,21 +335,29 @@ if __name__ == "__main__":
                         url=myurl,
                         notes=mynotes,
                     )
-                    logger.info(mytitle)
+                    # Add the extra properties (if present)
                     for value_field in value_fields:
                         newentry.set_custom_property(
                             key=value_field, value=value_fields[value_field]
                         )
+                    # write the attachments (if present)
                     if has_attachments:
                         attachments = myitem["attachments"]
                         for attachment in attachments:
+                            # get the name and the base64-encoded content
                             myattachmentname = attachment["name"]
                             myattachmentdata = attachment["data"]
+                            # decode the base64 content
                             myattachment = base64.b64decode(myattachmentdata)
+                            # add the decoded content to keepass
                             attachment_id = kp.add_binary(data=myattachment)
+                            # assign the file name to the binary and
+                            # create the logical connection to the main entry
                             newentry.add_attachment(
                                 id=attachment_id, filename=myattachmentname
                             )
 
-        # Save the keepass database to disc
+        # Finally, save the keepass database to disc
+        logger.info("Saving Keepass database")
         kp.save()
+
