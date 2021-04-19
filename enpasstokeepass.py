@@ -21,30 +21,6 @@
 #
 # This program reads an Enpass JSON export file and converts its contents
 # to an existing Keepass file.
-#
-# IN SCOPE:
-# - creates the (native) Enpass group names in Keepass; e.g. a login item
-#   will end up in the login category.
-# - whenever possible, item names (and attributes) are copied as is. If a
-#   duplicate entry is detected, the program still tries to write the entry
-#   by attaching Enpass' uid/uuid to it.
-# - supports transfer of attachments
-#
-# OUT OF SCOPE / KNOWN ISSUES
-# - little to none exception handling
-# - garbage-in-garbage-out. For certain entries, Enpass does seem to store entry
-#   fields that are not displayed in the GUI - but are present in the JSON export file
-# - the category / group names are copied "as is" (based on their group *type*)
-# - The program expects an existing Keepass file. It will not create one for you.
-# - first-come-first-serve. Enpass allows e.g. multiple 'password' attributes per
-#   entry. For each type in (username, email, password, url), this converter uses
-#   the very first instance for creating the native Keepass key value. Occurrence 2..n
-#   will end up as regular attributes in the Keepass entry - regardless of
-#   whether they are e.g. a URL, email address - or not
-# - Converter assumes that there will be 0...1 "totp" entries in the Enpass entry.
-#   In case Enpass should ever support more than one TOTP setting per entry, only
-#   the very last entry will be copied
-#
 
 import json
 import os
@@ -139,7 +115,7 @@ if __name__ == "__main__":
     # the creation of 'regular' attributes with these names
     key_categories = ["username", "email", "password", "url"]
 
-    copyfile("/Volumes/Untitled/empty_keepass_database.kdbx", keepass_filename)
+    # copyfile("/Volumes/Untitled/empty_keepass_database.kdbx", keepass_filename)
 
     # this is our keepass object
     kp = None
@@ -360,4 +336,3 @@ if __name__ == "__main__":
         # Finally, save the keepass database to disc
         logger.info("Saving Keepass database")
         kp.save()
-
