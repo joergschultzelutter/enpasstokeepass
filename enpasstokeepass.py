@@ -4,6 +4,7 @@ import logging
 from pykeepass import PyKeePass
 from shutil import copyfile
 import base64
+import unicodedata
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(module)s -%(levelname)s- %(message)s"
@@ -36,6 +37,10 @@ def read_enpass_json_file(json_filename: str):
             string_lines = " ".join(list_lines)
             json_content = json.loads(string_lines)
     return json_content
+
+
+def remove_control_characters(s):
+    return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
 
 
 if __name__ == "__main__":
@@ -89,6 +94,7 @@ if __name__ == "__main__":
             category = _templates[0]
             subcategory = _templates[1]
             mytitle = myitem["title"]
+            myuuid = myitem["uuid"]
 
             # Get any potential notes that are assigned to this item
             # Enpass always provides this information even if there is no data
@@ -128,6 +134,13 @@ if __name__ == "__main__":
                             if mylabel in value_fields:
                                 logger.info("Duplicate enpass label name detected; attaching UID to keepass label")
                                 mylabel = f"{mylabel}_{myuid}"
+
+                            if mylabel.lower() in key_categories:
+                                logger.info("Reserved word detected; attaching UID to keepass label")
+                                mylabel = f"{mylabel}_{myuid}"
+
+                            myvalue = remove_control_characters(myvalue)
+
                             # if the uuid'ed label is also a dupe, then we give up
                             # This could be enhanced with a more sophisticated key
                             # but as this a quick conversion kack I don't really care
@@ -135,8 +148,6 @@ if __name__ == "__main__":
                                 logger.info("Duplicate enpass label+uuid name detected; giving up")
                             else:
                                 value_fields[mylabel] = myvalue
-                print(f"Keyfields:{key_fields}")
-                print(f"restliche Felder: {value_fields}")
 
             # try to find the main category group in the keepass file
             # and create it if it does not exist yet
@@ -170,28 +181,37 @@ if __name__ == "__main__":
             myurl = key_fields["url"] if "url" in key_fields else None
             myemail = key_fields["email"] if "email" in key_fields else None
             if mytitle:
-                newentry = kp.add_entry(
-                    destination_group=sub_category,
-                    title=mytitle,
-                    username=myusername,
-                    password=mypassword,
-                    url=myurl,
-                    notes=mynotes,
-                )
-                for value_field in value_fields:
-                    newentry.set_custom_property(
-                        key=value_field, value=value_fields[value_field]
+                matches = kp.find_entries_by_title(title=mytitle,group=sub_category,first=True)
+                if matches:
+                    logger.info("Duplicate title detected; attaching uuid to it")
+                    mytitle = f"{mytitle}_{myuuid}"
+                matches = kp.find_entries_by_title(title=mytitle,group=sub_category,first=True)
+                if matches:
+                    logger.info("Duplicate title with uuid detected; giving up")
+                else:
+                    newentry = kp.add_entry(
+                        destination_group=sub_category,
+                        title=mytitle,
+                        username=myusername,
+                        password=mypassword,
+                        url=myurl,
+                        notes=mynotes,
                     )
-                if has_attachments:
-                    attachments = myitem["attachments"]
-                    for attachment in attachments:
-                        myattachmentname = attachment["name"]
-                        myattachmentdata = attachment["data"]
-                        myattachment = base64.b64decode(myattachmentdata)
-                        attachment_id = kp.add_binary(data=myattachment)
-                        newentry.add_attachment(
-                            id=attachment_id, filename=myattachmentname
+                    logger.info(mytitle)
+                    for value_field in value_fields:
+                        newentry.set_custom_property(
+                            key=value_field, value=value_fields[value_field]
                         )
+                    if has_attachments:
+                        attachments = myitem["attachments"]
+                        for attachment in attachments:
+                            myattachmentname = attachment["name"]
+                            myattachmentdata = attachment["data"]
+                            myattachment = base64.b64decode(myattachmentdata)
+                            attachment_id = kp.add_binary(data=myattachment)
+                            newentry.add_attachment(
+                                id=attachment_id, filename=myattachmentname
+                            )
 
         # Save the keepass database to disc
         kp.save()
