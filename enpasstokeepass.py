@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
                             # if the uuid'ed label is also a dupe, then we give up
                             # This could be enhanced with a more sophisticated key
-                            # but as this a quick conversion kack I don't really care
+                            # but as this a quick conversion hack I don't really care
                             if mylabel in value_fields:
                                 logger.info(
                                     f"Duplicate enpass label+uuid '{mylabel}' name for entry '{mytitle}' detected; giving up"
