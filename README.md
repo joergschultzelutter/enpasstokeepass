@@ -6,8 +6,50 @@ This program reads an Enpass JSON export file and writes its contents to an exis
 
 Syntax: ```enpasstokeepass [enpass_json_export_file] [existing_keepass_target_file] <--password Keepass_Password> <--keyfile Keepass_Keyfile>```
 
-## In Scope
+## Installation
+- clone repo
+- ```pip install -r requirements.txt```
 
+## Sample usage
+The following paragraph describes a sample export from Enpass, following by the respective Keepass import process. I use KeepassXC for the database generation; dependent on your Keepass flavor of choice, your miles may vary. I also do not use a Keepass keyfile for this example.
+
+### Step 1 - Enpass Export
+
+- Open Enpass
+- Menu ```File``` ->```Export```
+- Create an export of your database. My sample file name will be ```export.json```
+
+### Step 2 - Create Keepass database
+
+- Open KeepassXC
+- ```Create new database```
+- Leave defaults as is (db name will be ```Passwords.kbdx```)
+- Password is ```test1234```
+- optional: create an additional key file
+
+### Step 3 - Import process
+
+- Go to console and activate venv, whereas installed
+- ```python enpasstokeepass.py --password test1234 export.json Passwords.kdbx```
+
+Output should look like this:
+
+```2023-11-27 17:47:01,270 enpasstokeepass -INFO- Processing entry 'ABC'```
+
+```2023-11-27 17:47:01,276 enpasstokeepass -INFO- Processing entry 'DEF'```
+
+```2023-11-27 17:47:01,281 enpasstokeepass -INFO- Processing entry 'GHI'```
+
+...
+
+```2023-11-27 17:47:04,686 enpasstokeepass -INFO- Saving Keepass database```
+
+Note: unless you see the very last line (```Saving Keepass database``), your changes will not be written to the Keepass database.
+
+
+
+
+## In Scope
 - creates the (native) Enpass group names in Keepass; e.g. a login item will end up in the login category.
 - whenever possible, item names (and attributes) are copied as is. If a duplicate entry is detected, the program still tries to write the entry by attaching Enpass' uid/uuid to it.
 - supports full transfer of attachments
@@ -26,4 +68,4 @@ Syntax: ```enpasstokeepass [enpass_json_export_file] [existing_keepass_target_fi
 
 ## Dependencies
 
-- [pykeepass](https://pypi.org/project/pykeepass/)
+- [pykeepass](https://pypi.org/project/pykeepass/) version 4.0.2. If you install a later package version, OTP import will no longer work and the import is prone to crash. See [this web site](https://gitlab.gnome.org/World/secrets/-/issues/421) for details.
