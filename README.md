@@ -56,7 +56,7 @@ Note: unless you see the very last line (```Saving Keepass database``), your cha
 
 ## Out of scope / Known issues
 
-- little to none exception handling. This is a quick hack. It did convert my whole Enpass database without any issues, though. Nevertheless, your miles may vary.
+- little-to-none exception handling. This is a quick hack. It did convert my whole Enpass database without any issues, though. Nevertheless, your miles may vary.
 - Garbage-in-garbage-out. For certain entries, Enpass does seem to store fields that are not even visible in the GUI - but are present in the JSON export file. Obviously, these entries will be converted as well. If you start the migration and wonder about extra fields that suddenly appear in the Keepass target file, you may want to have a look at the Enpass export file - those fields are likely in there.
 - Enpass always exports ALL fields - regardless of whether the fields have any content or not. This program only converts those entries where the attributes have a value assigned to them. If you create an attribute but don't assign a value to it, that entry will not get converted.
 - The category / group names are copied "as is" (based on their Enpass group *type*). You may want to rename these categories once the migration has been completed.
@@ -65,6 +65,8 @@ Note: unless you see the very last line (```Saving Keepass database``), your cha
 - This program assumes that there will be 0...1 "totp" entries in the Enpass entry. In case Enpass should ever support more than one TOTP setting per entry  (should never happen), only the very last entry survives in the Keepass target file.
 - As part of the conversion, all entries will lose their original creation date as it does not seem to be possible to set that value via pykeepass
 - The Keepass expiration date cannot be set as there is no distinct Enpass data type for it
+- Enpass groups/sections within an enpass entry are NOT transferred to Keepass. Reason: they are exported as "empty" entries and apart from their order enumeration, there is no connection to the fields that are part of Enpass' export
+- The export process will always write NEW entries to Keepass. EXISTING entries will NOT be updated; if a key name conflict is detected (e.g. a key is to be written to Keepass but it already exists), the code will attach the innternal enpass UUID to that field name.
 
 ## Dependencies
 

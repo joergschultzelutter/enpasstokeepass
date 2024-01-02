@@ -134,7 +134,30 @@ if __name__ == "__main__":
     # read the enpass JSON file and receive its content as a dictionary
     json_data = read_enpass_json_file(json_filename=enpass_export_filename)
 
-    # start parsing the file
+    # start the parsing process. Enpass defines the entries as GLOBAL
+    # settings, meaning that we will first parse and collect these
+    # entries and then later on assign these settings to the Keepass
+    # export (whereas present)
+    #
+    # define an empty tag directory; this will contain
+    # the tag uuids and their corresponding human readable name
+    # from the export file in case the user has assigned tags
+    # to an entry.
+    enpass_tag_directory = {}
+
+    # Check if there are any tags in the export and collect the
+    # entries wheresas present
+    # The UUID will be used to match keepass entry and human readable
+    # tag value(s)
+    if "folders" in json_data:
+        myitems = json_data["folders"]
+
+        for myitem in myitems:
+            if "uuid" in myitem:
+                if "title" in myitem:
+                    enpass_tag_directory[myitem["uuid"]] = myitem["title"]
+
+    # start parsing the remainder of the file (our actual data)
     if "items" in json_data:
         myitems = json_data["items"]
 
@@ -178,6 +201,15 @@ if __name__ == "__main__":
 
             # Check if we deal with a default
             default_category = True if template_type.endswith(".default") else False
+
+            # First start with processing the tags. This is some kind of a backwards
+            # approach as the tags are exported AFTER the actual entry
+            # Reverse engineering beggars can't be choosers, though
+            tags_to_export = []
+            if "folders" in myitem:
+                for uuid in myitem["folders"]:
+                    if uuid in enpass_tag_directory:
+                        tags_to_export.append(enpass_tag_directory[uuid])
 
             # now iterate through all the individual fields that this record comes with
             if "fields" in myitem:
@@ -310,6 +342,7 @@ if __name__ == "__main__":
                         password=mypassword,
                         url=myurl,
                         notes=mynotes,
+                        tags=tags_to_export,
                     )
                     # Add the extra properties (if present)
                     for value_field in value_fields:
