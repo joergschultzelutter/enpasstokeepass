@@ -2,3 +2,4 @@ venv
 .idea
 *.kdbx
 *.json
+.DS_Store
