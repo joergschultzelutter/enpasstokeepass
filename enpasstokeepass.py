@@ -26,6 +26,7 @@ import json
 import os
 import logging
 from pykeepass import PyKeePass
+from pykeepass import __version__ as pykeepass_version
 from shutil import copyfile
 import base64
 import unicodedata
@@ -35,6 +36,10 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(module)s -%(levelname)s- %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# This program only runs with pykeepass version 4.0.2 so
+# let's ensure that the user has this version installed
+PYKEEPASS_VERSION_REQUIRED = "4.0.2"
 
 
 def read_enpass_json_file(json_filename: str):
@@ -90,6 +95,14 @@ def remove_control_characters(s):
 
 
 if __name__ == "__main__":
+    # check if the user has the correct pykeepass version installed
+    if pykeepass_version != PYKEEPASS_VERSION_REQUIRED:
+        logger.error(
+            msg=f"This program only runs with pykeepass version {PYKEEPASS_VERSION_REQUIRED}"
+        )
+        logger.error(msg=f"Your version of pykeepass is: {pykeepass_version}")
+        exit(0)
+
     # Get our parameters
     # Syntax: enpasstokeepass <enpass_export_file> <keepass_target_file> [--password] [--keyfile]
     parser = argparse.ArgumentParser()
@@ -114,8 +127,6 @@ if __name__ == "__main__":
     # Keepass' 'native' core key entries. We also use this table to prevent
     # the creation of 'regular' attributes with these names
     key_categories = ["username", "email", "password", "url"]
-
-    # copyfile("/Volumes/Untitled/empty_keepass_database.kdbx", keepass_filename)
 
     # this is our keepass object
     kp = None
