@@ -67,7 +67,3 @@ Note: unless you see the very last line (```Saving Keepass database``), your cha
 - The Keepass expiration date cannot be set as there is no distinct Enpass data type for it
 - Enpass groups/sections within an enpass entry are NOT transferred to Keepass. Reason: they are exported as "empty" entries and apart from their order enumeration, there is no connection to the fields that are part of Enpass' export
 - The export process will always write NEW entries to Keepass. EXISTING entries will NOT be updated; if a key name conflict is detected (e.g. a key is to be written to Keepass but it already exists), the code will attach the innternal enpass UUID to that field name.
-
-## Dependencies
-
-- [pykeepass](https://pypi.org/project/pykeepass/) version 4.0.2. If you install a later package version, OTP import will no longer work and the import is prone to crash. See [this web site](https://gitlab.gnome.org/World/secrets/-/issues/421) for details.
