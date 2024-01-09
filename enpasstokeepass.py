@@ -299,6 +299,8 @@ if __name__ == "__main__":
                                 # AND the field is not of "otp" value, add the UID
                                 reserved_key = is_reserved_word(mylabel)
                                 if reserved_key:
+                                    # now let's check if we need to keep the field 'as is'
+                                    # currently, this only applies to OTP entries
                                     if reserved_key not in pk_reserved_special_keys:
                                         logger.info(
                                             f"Detected reserved key '{mylabel}' for entry '{mytitle}'; attaching UID '{myuid}' to keepass label"
@@ -404,7 +406,9 @@ if __name__ == "__main__":
                         # need to be handled differently
                         #
                         # First check if the key that we are about to write is
-                        # a reserved word
+                        # a reserved word. Note that the only remaining
+                        # "reserved" key is an OTP entry - all other entries have
+                        # already been amended by their respective uid's
                         reserved_key = is_reserved_word(my_key=value_field)
 
                         # No reserved key? Great - write entry as usual and "as is"
@@ -414,19 +418,14 @@ if __name__ == "__main__":
                             )
                         else:
                             # We deal with a reserved key which requires us to invoke
-                            # the object's 'setter' method. HOWEVER: we can ONLY do
-                            # this for cases where our key is an 'otp' item - as updating
-                            # e.g. the 'title' item of the keepass entry that we are
-                            # about to create will not do - and is potentially not desired.
+                            # the object's 'setter' method. The ONLY entry that we should
+                            # see here is an "otp" entry. Every other reserved key has
+                            # already been force-amended with the field's uid value.
+                            # Nevertheless, let's keep this method generic in case of
+                            # future changes to pykeepass.
                             if reserved_key in pk_reserved_special_keys:
                                 setattr(
                                     newentry, reserved_key, value_fields[value_field]
-                                )
-                            else:
-                                # we deal with a reserved key but have already added a uuid to
-                                # the field. Set the value as is.
-                                newentry.set_custom_property(
-                                    key=value_field, value=value_fields[value_field]
                                 )
 
                     # write the attachments (if present)
