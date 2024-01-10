@@ -50,7 +50,7 @@ Note: unless you see the very last line ("`Saving Keepass database`"), your chan
 
 
 ## In Scope
-- creates the (native) Enpass group names in Keepass; e.g. a login item will end up in the login category.
+- creates the (native) Enpass group names in Keepass; e.g. a login item will end up in the login category
 - whenever possible, item names (and attributes) are copied as is. If a duplicate entry is detected, the program still tries to write the entry by attaching Enpass' uid/uuid to it.
 - supports full transfer of attachments
 
