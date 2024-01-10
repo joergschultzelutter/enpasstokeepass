@@ -32,14 +32,24 @@ import base64
 import unicodedata
 import argparse
 
+pk_reserved_keys = []
+pk_reserved_special_keys = ["otp"]
+
+# get the list of reserved keys from pykeepass whereas
+# present. This is important if the user runs a pykeepass
+# version of 4.0.4 and later.
+#
+try:
+    from pykeepass.entry import reserved_keys as _pk_keys
+
+    pk_reserved_keys = _pk_keys.copy()
+except ImportError:
+    pass
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(module)s -%(levelname)s- %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# This program only runs with pykeepass version 4.0.2 so
-# let's ensure that the user has this version installed
-PYKEEPASS_VERSION_REQUIRED = "4.0.2"
 
 
 def read_enpass_json_file(json_filename: str):
@@ -85,24 +95,48 @@ def read_enpass_json_file(json_filename: str):
     return json_content
 
 
-def remove_control_characters(s):
+def remove_control_characters(s: str):
     """
     Removes Unicode control characters from the input string
     (those control characters would result in an import error)
+
+    Parameters
+    ==========
+    s : 'str'
+        our input string
+
+    Returns
+    =======
+    string without unicode control characters
     """
 
     return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")
 
 
-if __name__ == "__main__":
-    # check if the user has the correct pykeepass version installed
-    if pykeepass_version != PYKEEPASS_VERSION_REQUIRED:
-        logger.error(
-            msg=f"This program only runs with pykeepass version {PYKEEPASS_VERSION_REQUIRED}"
-        )
-        logger.error(msg=f"Your version of pykeepass is: {pykeepass_version}")
-        exit(0)
+def is_reserved_word(my_key: str):
+    """
+    Detects if the key that we are about to write is something
+    that is considered as "reserved key" by pykeepass
 
+    Parameters
+    ==========
+    my_key : 'str'
+        the key that we want to check
+
+    Returns
+    =======
+    'None" if not found, else pykeepass' reserved key
+    """
+
+    low_key = my_key.lower()
+    lower_reserved_values = [res.lower() for res in pk_reserved_keys]
+    if low_key in lower_reserved_values:
+        return pk_reserved_keys[lower_reserved_values.index(low_key)]
+    else:
+        return None
+
+
+if __name__ == "__main__":
     # Get our parameters
     # Syntax: enpasstokeepass <enpass_export_file> <keepass_target_file> [--password] [--keyfile]
     parser = argparse.ArgumentParser()
@@ -261,6 +295,17 @@ if __name__ == "__main__":
                                         f"Duplicate enpass label name '{mylabel}' for entry '{mytitle}' detected; attaching UID '{myuid}' to keepass label"
                                     )
                                     mylabel = f"{mylabel}_{myuid}"
+                                # now check if we deal with a reserved key. If applicable
+                                # AND the field is not of "otp" value, add the UID
+                                reserved_key = is_reserved_word(mylabel)
+                                if reserved_key:
+                                    # now let's check if we need to keep the field 'as is'
+                                    # currently, this only applies to OTP entries
+                                    if reserved_key not in pk_reserved_special_keys:
+                                        logger.info(
+                                            f"Detected reserved key '{mylabel}' for entry '{mytitle}'; attaching UID '{myuid}' to keepass label"
+                                        )
+                                        mylabel = f"{mylabel}_{myuid}"
 
                             # check if the label that we want to create contains a Keepass keyword
                             # (e.g. password, url). If yes, rename the field accordingly
@@ -357,9 +402,32 @@ if __name__ == "__main__":
                     )
                     # Add the extra properties (if present)
                     for value_field in value_fields:
-                        newentry.set_custom_property(
-                            key=value_field, value=value_fields[value_field]
-                        )
+                        # starting with pykeepass version 4.0.4, several attributes
+                        # need to be handled differently
+                        #
+                        # First check if the key that we are about to write is
+                        # a reserved word. Note that the only remaining
+                        # "reserved" key is an OTP entry - all other entries have
+                        # already been amended by their respective uid's
+                        reserved_key = is_reserved_word(my_key=value_field)
+
+                        # No reserved key? Great - write entry as usual and "as is"
+                        if not reserved_key:
+                            newentry.set_custom_property(
+                                key=value_field, value=value_fields[value_field]
+                            )
+                        else:
+                            # We deal with a reserved key which requires us to invoke
+                            # the object's 'setter' method. The ONLY entry that we should
+                            # see here is an "otp" entry. Every other reserved key has
+                            # already been force-amended with the field's uid value.
+                            # Nevertheless, let's keep this method generic in case of
+                            # future changes to pykeepass.
+                            if reserved_key in pk_reserved_special_keys:
+                                setattr(
+                                    newentry, reserved_key, value_fields[value_field]
+                                )
+
                     # write the attachments (if present)
                     if has_attachments:
                         attachments = myitem["attachments"]
