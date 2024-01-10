@@ -44,7 +44,7 @@ Output should look like this:
 
 ```2023-11-27 17:47:04,686 enpasstokeepass -INFO- Saving Keepass database```
 
-Note: unless you see the very last line (```Saving Keepass database``), your changes will not be written to the Keepass database.
+Note: unless you see the very last line ("`Saving Keepass database`"), your changes will not be written to the Keepass database.
 
 
 
