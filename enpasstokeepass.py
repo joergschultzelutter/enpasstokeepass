@@ -136,6 +136,7 @@ def is_reserved_word(my_key: str):
     else:
         return None
 
+
 def is_uuid(my_uuid: str):
     """
     Checks if the given string is a uuid
@@ -157,6 +158,7 @@ def is_uuid(my_uuid: str):
         pass
 
     return False
+
 
 def get_command_line_params():
     """
@@ -193,9 +195,7 @@ def get_command_line_params():
     )
 
 
-
 if __name__ == "__main__":
-
     # get our command line parameters
     (
         keepass_filename,
@@ -251,7 +251,9 @@ if __name__ == "__main__":
             if "uuid" in myitem:
                 if "title" in myitem:
                     # our entry MIGHT be a tag
-                    my_parent_uuid = myitem["parent_uuid"] if "parent_uuid" in myitem else ""
+                    my_parent_uuid = (
+                        myitem["parent_uuid"] if "parent_uuid" in myitem else ""
+                    )
 
                     # The entry seems to be a tag if:
                     # - title is not "Root"
@@ -286,9 +288,24 @@ if __name__ == "__main__":
             # if the template type ends with '.default', then this is a category
             # without a subcategory
             template_type = myitem["template_type"]
-            _templates = template_type.split(".")
-            category = _templates[0]
-            subcategory = _templates[1]
+
+            # Check if we deal with a default
+            default_category = True if template_type.endswith(".default") else False
+
+            # per issue ticket #7, there might be rare cases where Enpass populates
+            # this field with a UUID - mainly because of a previous database import
+            # from e.g. Keepass to Enpass. I was unable to reproduce the issue
+            # (for my test cases, Enpass had always created separate folders)
+            # As a workaround, let's test if the field can be split up and is
+            # not a UUID. In any other case, assign a default category to our input
+            if "." in template_type and not is_uuid(template_type):
+                _templates = template_type.split(".")
+                category = _templates[0]
+                subcategory = _templates[1]
+            else:
+                category = "Miscellaneous"
+                subcategory = ""
+                default_category = False
 
             # Get title and uuid
             mytitle = myitem["title"]
@@ -303,9 +320,6 @@ if __name__ == "__main__":
 
             # Check if we have any attachments
             has_attachments = True if "attachments" in myitem else False
-
-            # Check if we deal with a default
-            default_category = True if template_type.endswith(".default") else False
 
             # First start with processing the tags. This is some kind of a backwards
             # approach as the tags are exported AFTER the actual entry
