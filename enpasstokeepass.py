@@ -236,9 +236,6 @@ if __name__ == "__main__":
     # to an entry.
     enpass_tag_directory = {}
 
-    # Same thing - but for folders and sub folders
-    enpass_folder_directory = {}
-
     # Check if there are any tags in the export and collect the
     # entries wheresas present
     # The UUID will be used to match keepass entry and human readable
