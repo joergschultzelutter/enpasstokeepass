@@ -31,6 +31,7 @@ from shutil import copyfile
 import base64
 import unicodedata
 import argparse
+import uuid
 
 pk_reserved_keys = []
 pk_reserved_special_keys = ["otp"]
@@ -136,7 +137,40 @@ def is_reserved_word(my_key: str):
         return None
 
 
-if __name__ == "__main__":
+def is_uuid(my_uuid: str):
+    """
+    Checks if the given string is a uuid
+
+    Parameters
+    ==========
+    my_uuid : 'str'
+        (potential) uuid that we want to check
+
+    Returns
+    =======
+    'False' -> string is no uuid
+    'True" -> string is uuid
+    """
+    try:
+        uuid.UUID(my_uuid)
+        return True
+    except ValueError:
+        pass
+
+    return False
+
+
+def get_command_line_params():
+    """
+    Gets the program's input parameters
+
+    Parameters
+    ==========
+        none
+    Returns
+    =======
+        input parameters from command line
+    """
     # Get our parameters
     # Syntax: enpasstokeepass <enpass_export_file> <keepass_target_file> [--password] [--keyfile]
     parser = argparse.ArgumentParser()
@@ -153,10 +187,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    keepass_filename = args.keepassfile.name
-    keepass_password = args.password
-    keepass_keyfile = args.keyfile
-    enpass_export_filename = args.enpassfile.name
+    return (
+        args.keepassfile.name,
+        args.password,
+        args.keyfile,
+        args.enpassfile.name,
+    )
+
+
+if __name__ == "__main__":
+    # get our command line parameters
+    (
+        keepass_filename,
+        keepass_password,
+        keepass_keyfile,
+        enpass_export_filename,
+    ) = get_command_line_params()
 
     # Keepass' 'native' core key entries. We also use this table to prevent
     # the creation of 'regular' attributes with these names
@@ -193,14 +239,27 @@ if __name__ == "__main__":
     # Check if there are any tags in the export and collect the
     # entries wheresas present
     # The UUID will be used to match keepass entry and human readable
-    # tag value(s)
+    # tag value(s) _OR_ folders (yes, Enpass (ab)uses this structure
+    # for two different things. Don't blame me for it :-)
     if "folders" in json_data:
         myitems = json_data["folders"]
 
         for myitem in myitems:
             if "uuid" in myitem:
                 if "title" in myitem:
-                    enpass_tag_directory[myitem["uuid"]] = myitem["title"]
+                    # our entry MIGHT be a tag
+                    my_parent_uuid = (
+                        myitem["parent_uuid"] if "parent_uuid" in myitem else ""
+                    )
+
+                    # The entry seems to be a tag if:
+                    # - title is not "Root"
+                    # - parent_uuid is empty
+                    # If these conditions do not apply, our entry might be a (sub)folder
+                    # we will gather these in a different structure in order
+                    # to avoid confusion
+                    if myitem["title"] != "Root" and my_parent_uuid == "":
+                        enpass_tag_directory[myitem["uuid"]] = myitem["title"]
 
     # start parsing the remainder of the file (our actual data)
     if "items" in json_data:
@@ -226,9 +285,24 @@ if __name__ == "__main__":
             # if the template type ends with '.default', then this is a category
             # without a subcategory
             template_type = myitem["template_type"]
-            _templates = template_type.split(".")
-            category = _templates[0]
-            subcategory = _templates[1]
+
+            # Check if we deal with a default
+            default_category = True if template_type.endswith(".default") else False
+
+            # per issue ticket #7, there might be rare cases where Enpass populates
+            # this field with a UUID - mainly because of a previous database import
+            # from e.g. Keepass to Enpass. I was unable to reproduce the issue
+            # (for my test cases, Enpass had always created separate folders)
+            # As a workaround, let's test if the field can be split up and is
+            # not a UUID. In any other case, assign a default category to our input
+            if "." in template_type and not is_uuid(template_type):
+                _templates = template_type.split(".")
+                category = _templates[0]
+                subcategory = _templates[1]
+            else:
+                category = "Miscellaneous"
+                subcategory = ""
+                default_category = False
 
             # Get title and uuid
             mytitle = myitem["title"]
@@ -243,9 +317,6 @@ if __name__ == "__main__":
 
             # Check if we have any attachments
             has_attachments = True if "attachments" in myitem else False
-
-            # Check if we deal with a default
-            default_category = True if template_type.endswith(".default") else False
 
             # First start with processing the tags. This is some kind of a backwards
             # approach as the tags are exported AFTER the actual entry
