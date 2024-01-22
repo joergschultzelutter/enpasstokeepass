@@ -31,6 +31,7 @@ from shutil import copyfile
 import base64
 import unicodedata
 import argparse
+import uuid
 
 pk_reserved_keys = []
 pk_reserved_special_keys = ["otp"]
@@ -135,8 +136,39 @@ def is_reserved_word(my_key: str):
     else:
         return None
 
+def is_uuid(my_uuid: str):
+    """
+    Checks if the given string is a uuid
 
-if __name__ == "__main__":
+    Parameters
+    ==========
+    my_uuid : 'str'
+        (potential) uuid that we want to check
+
+    Returns
+    =======
+    'False' -> string is no uuid
+    'True" -> string is uuid
+    """
+    try:
+        uuid.UUID(my_uuid)
+        return True
+    except ValueError:
+        pass
+
+    return False
+
+def get_command_line_params():
+    """
+    Gets the program's input parameters
+
+    Parameters
+    ==========
+        none
+    Returns
+    =======
+        input parameters from command line
+    """
     # Get our parameters
     # Syntax: enpasstokeepass <enpass_export_file> <keepass_target_file> [--password] [--keyfile]
     parser = argparse.ArgumentParser()
@@ -153,10 +185,24 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    keepass_filename = args.keepassfile.name
-    keepass_password = args.password
-    keepass_keyfile = args.keyfile
-    enpass_export_filename = args.enpassfile.name
+    return (
+        args.keepassfile.name,
+        args.password,
+        args.keyfile,
+        args.enpassfile.name,
+    )
+
+
+
+if __name__ == "__main__":
+
+    # get our command line parameters
+    (
+        keepass_filename,
+        keepass_password,
+        keepass_keyfile,
+        enpass_export_filename,
+    ) = get_command_line_params()
 
     # Keepass' 'native' core key entries. We also use this table to prevent
     # the creation of 'regular' attributes with these names
@@ -190,17 +236,31 @@ if __name__ == "__main__":
     # to an entry.
     enpass_tag_directory = {}
 
+    # Same thing - but for folders and sub folders
+    enpass_folder_directory = {}
+
     # Check if there are any tags in the export and collect the
     # entries wheresas present
     # The UUID will be used to match keepass entry and human readable
-    # tag value(s)
+    # tag value(s) _OR_ folders (yes, Enpass (ab)uses this structure
+    # for two different things. Don't blame me for it :-)
     if "folders" in json_data:
         myitems = json_data["folders"]
 
         for myitem in myitems:
             if "uuid" in myitem:
                 if "title" in myitem:
-                    enpass_tag_directory[myitem["uuid"]] = myitem["title"]
+                    # our entry MIGHT be a tag
+                    my_parent_uuid = myitem["parent_uuid"] if "parent_uuid" in myitem else ""
+
+                    # The entry seems to be a tag if:
+                    # - title is not "Root"
+                    # - parent_uuid is empty
+                    # If these conditions do not apply, our entry might be a (sub)folder
+                    # we will gather these in a different structure in order
+                    # to avoid confusion
+                    if myitem["title"] != "Root" and my_parent_uuid == "":
+                        enpass_tag_directory[myitem["uuid"]] = myitem["title"]
 
     # start parsing the remainder of the file (our actual data)
     if "items" in json_data:
