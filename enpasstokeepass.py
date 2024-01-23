@@ -31,7 +31,7 @@ from shutil import copyfile
 import base64
 import unicodedata
 import argparse
-import uuid
+from uuid import UUID
 
 pk_reserved_keys = []
 pk_reserved_special_keys = ["otp"]
@@ -152,7 +152,7 @@ def is_uuid(my_uuid: str):
     'True" -> string is uuid
     """
     try:
-        uuid.UUID(my_uuid)
+        UUID(my_uuid)
         return True
     except ValueError:
         pass
