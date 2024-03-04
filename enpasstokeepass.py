@@ -1,4 +1,5 @@
 #!/opt/local/bin/python
+import datetime
 
 # Enpass-to-Keepass converter
 # Author: Joerg Schultze-Lutter, 2021
@@ -281,6 +282,16 @@ if __name__ == "__main__":
             # we reserve a 2nd dictionary
             value_fields = {}
 
+            # Get the Unix timestamp for when the entry was last
+            # updated convert it to a Python DateTime object
+            updated_at_ux = myitem["updated_at"]
+            updated_at_dt = datetime.datetime.fromtimestamp(updated_at_ux)
+
+            # Get the Unix timestamp for when the entry was
+            # created and convert it to a Python DateTime object
+            created_at_ux = myitem["createdAt"]
+            created_at_dt = datetime.datetime.fromtimestamp(created_at_ux)
+
             # Get the template type (Enpass' product category)
             # if the template type ends with '.default', then this is a category
             # without a subcategory
@@ -471,12 +482,18 @@ if __name__ == "__main__":
                         notes=mynotes,
                         tags=tags_to_export,
                     )
+
+                    # set the original created_at / updated_at
+                    # values from Enpass for our new entry
+                    newentry.ctime = created_at_dt
+                    newentry.mtime = updated_at_dt
+
                     # Add the extra properties (if present)
                     for value_field in value_fields:
                         # starting with pykeepass version 4.0.4, several attributes
                         # need to be handled differently
                         #
-                        # First check if the key that we are about to write is
+                        # First check if the key that we are about to write is~
                         # a reserved word. Note that the only remaining
                         # "reserved" key is an OTP entry - all other entries have
                         # already been amended by their respective uid's

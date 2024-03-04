@@ -44,9 +44,7 @@ Output should look like this:
 
 ```2023-11-27 17:47:04,686 enpasstokeepass -INFO- Saving Keepass database```
 
-Note: unless you see the very last line ("`Saving Keepass database`"), your changes will not be written to the Keepass database.
-
-
+Note: unless you see the very last line ("`Saving Keepass database`"), your changes will _not_ be written to the Keepass database.
 
 
 ## In Scope
@@ -63,7 +61,6 @@ Note: unless you see the very last line ("`Saving Keepass database`"), your chan
 - The program expects an __existing__ Keepass file. It will __not__ create a new file for you. Additionally, I strongly suggest testing the conversion with an empty target database first.
 - First-come-first-serve. Enpass permits e.g. multiple 'password' attributes per entry. For each type in (username, email, password, url), this converter uses the very first instance for creating the native Keepass key value. Occurrence 2..n will end up as regular attributes in the Keepass entry - regardless of whether they are e.g. a URL, email address or not. Note that the entries are copied 'as is' (just their respective field values WITHOUT any read protection). You may be forced to manually protect those additional password entries. Neither the Enpass export file gives any indication about their (previous) visibility protection state nor can that status be set via PyKeePass for the additional attributes.
 - This program assumes that there will be 0...1 "totp" entries in the Enpass entry. In case Enpass should ever support more than one TOTP setting per entry  (should never happen), only the very last entry survives in the Keepass target file.
-- As part of the conversion, all entries will lose their original creation date as it does not seem to be possible to set that value via pykeepass
 - The Keepass expiration date cannot be set as there is no distinct Enpass data type for it
 - Enpass groups/sections within an enpass entry are NOT transferred to Keepass. Reason: they are exported as "empty" entries and apart from their order enumeration, there is no connection to the fields that are part of Enpass' export.
 - The export process will always write NEW entries to Keepass. EXISTING entries will NOT be updated; if a key name conflict is detected (e.g. a key is to be written to Keepass, but it already exists), the code will attach the internal enpass UID to that field name.
