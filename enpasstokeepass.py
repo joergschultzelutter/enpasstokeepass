@@ -33,6 +33,7 @@ import base64
 import unicodedata
 import argparse
 from uuid import UUID
+import pytz
 
 pk_reserved_keys = []
 pk_reserved_special_keys = ["otp"]
@@ -485,8 +486,8 @@ if __name__ == "__main__":
 
                     # set the original created_at / updated_at
                     # values from Enpass for our new entry
-                    newentry.ctime = created_at_dt
-                    newentry.mtime = updated_at_dt
+                    newentry.ctime = created_at_dt.replace(tzinfo=pytz.UTC)
+                    newentry.mtime = updated_at_dt.replace(tzinfo=pytz.UTC)
 
                     # Add the extra properties (if present)
                     for value_field in value_fields:
