@@ -33,6 +33,7 @@ import base64
 import unicodedata
 import argparse
 from uuid import UUID
+import pytz
 
 pk_reserved_keys = []
 pk_reserved_special_keys = ["otp"]
@@ -289,7 +290,7 @@ if __name__ == "__main__":
 
             # Get the Unix timestamp for when the entry was
             # created and convert it to a Python DateTime object
-            created_at_ux = myitem["createdAt"]
+            created_at_ux = myitem["createdAt"] if "created_at" in myitem else myitem["updated_at"]
             created_at_dt = datetime.datetime.fromtimestamp(created_at_ux)
 
             # Get the template type (Enpass' product category)
@@ -485,8 +486,8 @@ if __name__ == "__main__":
 
                     # set the original created_at / updated_at
                     # values from Enpass for our new entry
-                    newentry.ctime = created_at_dt
-                    newentry.mtime = updated_at_dt
+                    newentry.ctime = created_at_dt.replace(tzinfo=pytz.UTC)
+                    newentry.mtime = updated_at_dt.replace(tzinfo=pytz.UTC)
 
                     # Add the extra properties (if present)
                     for value_field in value_fields:
