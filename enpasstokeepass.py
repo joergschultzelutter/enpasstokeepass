@@ -289,7 +289,7 @@ if __name__ == "__main__":
 
             # Get the Unix timestamp for when the entry was
             # created and convert it to a Python DateTime object
-            created_at_ux = myitem["createdAt"]
+            created_at_ux = myitem["createdAt"] if "created_at" in myitem else myitem["updated_at"]
             created_at_dt = datetime.datetime.fromtimestamp(created_at_ux)
 
             # Get the template type (Enpass' product category)
