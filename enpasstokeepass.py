@@ -443,7 +443,18 @@ if __name__ == "__main__":
 
             # now extract our special key fields from the dict
             # Username and Password can be empty string if the values are not present
-            myusername = key_fields["username"] if "username" in key_fields else ""
+            if  "username" in key_fields:
+                myusername = key_fields["username"]
+                if "email" in key_fields:
+                    value_fields['email'] = key_fields["email"]
+    
+            elif "email" in key_fields:
+                myusername = key_fields["email"]
+            else:
+                myusername = ""
+                if "email" in key_fields:
+                    value_fields['email'] = key_fields["email"]
+    
             mypassword = key_fields["password"] if "password" in key_fields else ""
 
             # Per pykeepass, url and email need to be 'None" if not present
