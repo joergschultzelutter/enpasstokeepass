@@ -76,7 +76,7 @@ def read_enpass_json_file(json_filename: str):
 
     if os.path.isfile(json_filename):
         try:
-            with open(f"{json_filename}", "r") as f:
+            with open(f"{json_filename}", "r", encoding="utf-8") as f:
                 if f.mode == "r":
                     list_lines = f.readlines()
                     f.close()
